@@ -112,26 +112,22 @@ export async function signOutAccount() {
 }
 
 // POSTS
-
-//  CREATE POST
 export async function createPost(post: INewPost) {
   try {
-    // Upload file to appwrite storage
     const uploadedFile = await uploadFile(post.file[0]);
 
-    if (!uploadedFile) throw Error;
-
-    // Get file url
-    const fileUrl = getFilePreview(uploadedFile.$id);
-    if (!fileUrl) {
-      await deleteFile(uploadedFile.$id);
-      throw Error;
+    if (!uploadedFile) {
+      throw new Error("Failed to upload file to storage.");
     }
 
-    // Convert tags into array
-    const tags = post.tags?.replace(/ /g, "").split(",") || [];
+    const fileUrl = getFilePreview(uploadedFile.$id);
 
-    // Create post
+    if (!fileUrl) {
+      await deleteFile(uploadedFile.$id);
+      throw new Error("Failed to get file preview URL.");
+    }
+
+    const tags = post.tags?.replace(/ /g, "").split(",") || [];
     const newPost = await databases.createDocument(
       appwriteConfig.databaseId,
       appwriteConfig.postCollectionId,
@@ -139,25 +135,27 @@ export async function createPost(post: INewPost) {
       {
         creator: post.userId,
         caption: post.caption,
-        imageUrl: fileUrl,
-        imageId: uploadedFile.$id,
+        image: fileUrl, // Include the "image" attribute here
+        imageid: uploadedFile.$id, // Include the "imageid" attribute here
         location: post.location,
         tags: tags,
       }
     );
+    
+    
 
     if (!newPost) {
       await deleteFile(uploadedFile.$id);
-      throw Error;
+      throw new Error("Failed to create new post document.");
     }
 
     return newPost;
   } catch (error) {
-    console.log(error);
+    console.error("Error creating post:", error);
+    throw error; // Re-throw the error for the calling function to handle
   }
 }
 
-//  UPLOAD FILE
 export async function uploadFile(file: File) {
   try {
     console.log('File:', file);
@@ -169,9 +167,11 @@ export async function uploadFile(file: File) {
 
     return uploadedFile;
   } catch (error) {
-    console.log(error);
+    console.error("Error uploading file:", error);
+    throw error;
   }
 }
+
 
 //  GET FILE URL
 export function getFilePreview(fileId: string) {
