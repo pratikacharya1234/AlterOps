@@ -112,22 +112,26 @@ export async function signOutAccount() {
 }
 
 // POSTS
+
+//  CREATE POST
 export async function createPost(post: INewPost) {
   try {
+    // Upload file to appwrite storage
     const uploadedFile = await uploadFile(post.file[0]);
 
-    if (!uploadedFile) {
-      throw new Error("Failed to upload file to storage.");
-    }
+    if (!uploadedFile) throw Error;
 
+    // Get file url
     const fileUrl = getFilePreview(uploadedFile.$id);
-
     if (!fileUrl) {
       await deleteFile(uploadedFile.$id);
-      throw new Error("Failed to get file preview URL.");
+      throw Error;
     }
 
+    // Convert tags into array
     const tags = post.tags?.replace(/ /g, "").split(",") || [];
+
+    // Create post
     const newPost = await databases.createDocument(
       appwriteConfig.databaseId,
       appwriteConfig.postCollectionId,
@@ -135,27 +139,25 @@ export async function createPost(post: INewPost) {
       {
         creator: post.userId,
         caption: post.caption,
-        image: fileUrl, // Include the "image" attribute here
-        imageid: uploadedFile.$id, // Include the "imageid" attribute here
+        imageUrl: fileUrl,
+        imageId: uploadedFile.$id,
         location: post.location,
         tags: tags,
       }
     );
-    
-    
 
     if (!newPost) {
       await deleteFile(uploadedFile.$id);
-      throw new Error("Failed to create new post document.");
+      throw Error;
     }
 
     return newPost;
   } catch (error) {
-    console.error("Error creating post:", error);
-    throw error; // Re-throw the error for the calling function to handle
+    console.log(error);
   }
 }
 
+//  UPLOAD FILE
 export async function uploadFile(file: File) {
   try {
     console.log('File:', file);
@@ -167,11 +169,9 @@ export async function uploadFile(file: File) {
 
     return uploadedFile;
   } catch (error) {
-    console.error("Error uploading file:", error);
-    throw error;
+    console.log(error);
   }
 }
-
 
 //  GET FILE URL
 export function getFilePreview(fileId: string) {
